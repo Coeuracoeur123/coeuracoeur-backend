@@ -3,7 +3,7 @@
 // =========================
 require("dotenv").config();
 
-for (const key of ["DB_USER", "DB_PASSWORD", "DB_NAME", "SSH_LOCAL_PORT"]) {
+for (const key of ["JWT_SECRET", "DB_USER", "DB_PASSWORD", "DB_NAME", "SSH_LOCAL_PORT"]) {
   if (!process.env[key]) {
     console.error(`Missing required env var: ${key}`);
     process.exit(1);

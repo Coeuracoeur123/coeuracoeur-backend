@@ -1,4 +1,3 @@
-require("dotenv").config();
 const { createTunnel } = require("tunnel-ssh");
 const fs = require("fs");
 
@@ -9,6 +8,10 @@ async function startTunnel() {
   }
 
   const localPort = parseInt(process.env.SSH_LOCAL_PORT) || 3307;
+
+  if (!process.env.SSH_PRIVATE_KEY_PATH && !process.env.SSH_PASSWORD) {
+    throw new Error("SSH auth requires either SSH_PRIVATE_KEY_PATH or SSH_PASSWORD");
+  }
 
   const sshOptions = {
     host: process.env.SSH_HOST,
@@ -24,10 +27,6 @@ async function startTunnel() {
         })() }
       : { password: process.env.SSH_PASSWORD }),
   };
-
-  if (!process.env.SSH_PRIVATE_KEY_PATH && !process.env.SSH_PASSWORD) {
-    throw new Error("SSH auth requires either SSH_PRIVATE_KEY_PATH or SSH_PASSWORD");
-  }
 
   const forwardOptions = {
     srcAddr: "127.0.0.1",
