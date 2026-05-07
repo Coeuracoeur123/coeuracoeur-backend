@@ -17,7 +17,13 @@ const { startTunnel } = require("./tunnel");
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  methods: "*",
+  allowedHeaders: "*",
+  exposedHeaders: "*",
+  optionsSuccessStatus: 204,
+}));
 app.use("/uploads", express.static("uploads"));
 const multer = require("multer");
 const path = require("path");
@@ -363,8 +369,8 @@ async function main() {
 
   const port = parseInt(process.env.PORT) || 5000;
   await new Promise((resolve, reject) => {
-    const server = app.listen(port, () => {
-      console.log(`🚀 Backend PRO running on http://localhost:${port}`);
+    const server = app.listen(port, "0.0.0.0", () => {
+      console.log(`🚀 Backend PRO running on http://0.0.0.0:${port}`);
       resolve();
     });
     server.on("error", reject);
