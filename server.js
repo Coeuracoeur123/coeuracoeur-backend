@@ -19,7 +19,13 @@ const { startTunnel } = require("./tunnel");
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  methods: "*",
+  allowedHeaders: "*",
+  exposedHeaders: "*",
+  optionsSuccessStatus: 204,
+}));
 
 // =========================
 // CONFIG
@@ -57,6 +63,10 @@ const auth = (req, res, next) => {
 app.use((req, res, next) => {
   console.log("➡️ REQUEST:", req.method, req.url);
   next();
+});
+
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
 });
 
 // =========================
@@ -379,8 +389,8 @@ async function main() {
 
   const port = parseInt(process.env.PORT) || 5000;
   await new Promise((resolve, reject) => {
-    const server = app.listen(port, () => {
-      console.log(`🚀 Server PRO running on port ${port}`);
+    const server = app.listen(port, "0.0.0.0", () => {
+      console.log(`🚀 Server PRO running on 0.0.0.0:${port}`);
       resolve();
     });
     server.on("error", reject);
