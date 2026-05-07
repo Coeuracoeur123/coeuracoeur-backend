@@ -1,9 +1,19 @@
+require("dotenv").config();
+
+for (const key of ["JWT_SECRET", "DB_USER", "DB_PASSWORD", "DB_NAME", "SSH_LOCAL_PORT"]) {
+  if (!process.env[key]) {
+    console.error(`Missing required env var: ${key}`);
+    process.exit(1);
+  }
+}
+
 const express = require("express");
 const mysql = require("mysql2/promise");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
+const { startTunnel } = require("./tunnel");
 
 const app = express();
 app.use(express.json());
@@ -25,17 +35,12 @@ const upload = multer({ storage });
 // =========================
 // CONFIG
 // =========================
-const JWT_SECRET = "SUPER_SECRET_KEY_CHANGE_THIS";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // =========================
-// MYSQL POOL (PRO)
+// MYSQL CONNECTION (via SSH tunnel)
 // =========================
-const db = mysql.createConnection({
-  host: "soutenir-coeuracoeur.com",
-  user: "souteni1_coeur_db",
-  password: "SC7sZuS86G3bdLGmFtff",
-  database: "souteni1_coeur_db",
-});
+let db;
 
 // =========================
 // MIDDLEWARE AUTH
@@ -344,6 +349,29 @@ app.get("/api/admin/stats", auth, isAdmin, async (req, res) => {
 // =========================
 // START SERVER
 // =========================
-app.listen(5000, () =>
-  console.log("🚀 Backend PRO running on http://localhost:5000")
-);
+async function main() {
+  await startTunnel();
+
+  db = await mysql.createConnection({
+    host: "127.0.0.1",
+    port: parseInt(process.env.SSH_LOCAL_PORT) || 3307,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+  });
+  console.log("✅ MySQL Connected...");
+
+  const port = parseInt(process.env.PORT) || 5000;
+  await new Promise((resolve, reject) => {
+    const server = app.listen(port, () => {
+      console.log(`🚀 Backend PRO running on http://localhost:${port}`);
+      resolve();
+    });
+    server.on("error", reject);
+  });
+}
+
+main().catch((err) => {
+  console.error("Startup failed:", err.message);
+  process.exit(1);
+});
