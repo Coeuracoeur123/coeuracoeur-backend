@@ -1,12 +1,14 @@
 // =========================
 // BACKEND NODE.JS PRO UPGRADED
 // =========================
+require("dotenv").config();
 
 const express = require("express");
 const mysql = require("mysql2");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const cors = require("cors");
+const { startTunnel } = require("./tunnel");
 
 const app = express();
 app.use(express.json());
@@ -15,21 +17,17 @@ app.use(cors());
 // =========================
 // CONFIG
 // =========================
-const JWT_SECRET = "SUPER_SECRET_KEY_CHANGE_THIS";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // =========================
 // MYSQL CONNECTION
 // =========================
 const db = mysql.createConnection({
-  host: "localhost",
-  user: "souteni1",
-  password: "(n]j792AmaGY8R",
-  database: "souteni1_coeur_db",
-});
-
-db.connect((err) => {
-  if (err) throw err;
-  console.log("✅ MySQL Connected...");
+  host: "127.0.0.1",
+  port: parseInt(process.env.SSH_LOCAL_PORT) || 3307,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
 });
 
 // =========================
@@ -361,6 +359,24 @@ app.put("/api/projects/:id/approve", auth, isAdmin, async (req, res) => {
 // =========================
 // START SERVER
 // =========================
-app.listen(5000, () =>
-  console.log("🚀 Server PRO running on port 5000")
-);
+async function main() {
+  await startTunnel();
+
+  await new Promise((resolve, reject) => {
+    db.connect((err) => {
+      if (err) return reject(err);
+      console.log("✅ MySQL Connected...");
+      resolve();
+    });
+  });
+
+  const port = parseInt(process.env.PORT) || 5000;
+  app.listen(port, () =>
+    console.log(`🚀 Server PRO running on port ${port}`)
+  );
+}
+
+main().catch((err) => {
+  console.error("Startup failed:", err.message);
+  process.exit(1);
+});
