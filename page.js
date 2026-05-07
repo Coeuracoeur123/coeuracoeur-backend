@@ -81,6 +81,10 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
 // =========================
 // AUTH
 // =========================
