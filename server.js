@@ -3,6 +3,13 @@
 // =========================
 require("dotenv").config();
 
+for (const key of ["DB_USER", "DB_PASSWORD", "DB_NAME", "SSH_LOCAL_PORT"]) {
+  if (!process.env[key]) {
+    console.error(`Missing required env var: ${key}`);
+    process.exit(1);
+  }
+}
+
 const express = require("express");
 const mysql = require("mysql2");
 const jwt = require("jsonwebtoken");
@@ -371,9 +378,13 @@ async function main() {
   });
 
   const port = parseInt(process.env.PORT) || 5000;
-  app.listen(port, () =>
-    console.log(`🚀 Server PRO running on port ${port}`)
-  );
+  await new Promise((resolve, reject) => {
+    const server = app.listen(port, () => {
+      console.log(`🚀 Server PRO running on port ${port}`);
+      resolve();
+    });
+    server.on("error", reject);
+  });
 }
 
 main().catch((err) => {
