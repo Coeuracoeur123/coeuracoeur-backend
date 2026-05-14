@@ -13,7 +13,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
-const { startTunnel } = require("./tunnel");
+const { startTunnel, probeLocalMySQL } = require("./tunnel");
 
 const app = express();
 app.use(express.json());
@@ -360,11 +360,22 @@ app.get("/api/admin/stats", auth, isAdmin, async (req, res) => {
 // START SERVER
 // =========================
 async function main() {
-  await startTunnel();
+  const localPort = parseInt(process.env.DB_LOCAL_PORT) || 3306;
+  const reachable = await probeLocalMySQL("127.0.0.1", localPort, 500);
+
+  let dbPort;
+  if (reachable) {
+    console.log("✅ Local MySQL reachable — skipping tunnel");
+    dbPort = localPort;
+  } else {
+    console.log("🔌 Local MySQL not reachable — starting SSH tunnel");
+    await startTunnel();
+    dbPort = parseInt(process.env.SSH_LOCAL_PORT) || 3307;
+  }
 
   db = await mysql.createConnection({
     host: "127.0.0.1",
-    port: parseInt(process.env.SSH_LOCAL_PORT) || 3307,
+    port: dbPort,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
