@@ -2,10 +2,12 @@ const { Client } = require("ssh2");
 const net = require("net");
 const fs = require("fs");
 
+// TCP-only probe — confirms the port is open, not that MySQL is running.
+// A non-MySQL process bound to the port will also return true.
 function probeLocalMySQL(host, port, timeoutMs) {
   return new Promise((resolve) => {
     const socket = new net.Socket();
-    let settled = false;
+    let settled = false; // guard: error and close can both fire in sequence
 
     const done = (result) => {
       if (settled) return;
