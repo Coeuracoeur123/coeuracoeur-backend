@@ -373,13 +373,17 @@ async function main() {
     dbPort = parseInt(process.env.SSH_LOCAL_PORT) || 3307;
   }
 
-  db = await mysql.createConnection({
+  db = mysql.createPool({
     host: "127.0.0.1",
     port: dbPort,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 10,
   });
+  const conn = await db.getConnection();
+  conn.release();
   console.log("✅ MySQL Connected...");
 
   const port = parseInt(process.env.PORT) || 5000;
