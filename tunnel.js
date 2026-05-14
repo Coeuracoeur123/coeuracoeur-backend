@@ -2,6 +2,26 @@ const { Client } = require("ssh2");
 const net = require("net");
 const fs = require("fs");
 
+function probeLocalMySQL(host, port, timeoutMs) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    let settled = false;
+
+    const done = (result) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(result);
+    };
+
+    socket.setTimeout(timeoutMs);
+    socket.on("connect", () => done(true));
+    socket.on("error", () => done(false));
+    socket.on("timeout", () => done(false));
+    socket.connect(port, host);
+  });
+}
+
 async function startTunnel() {
   const missing = ["SSH_HOST", "SSH_USER"].filter((k) => !process.env[k]);
   if (missing.length) {
@@ -78,4 +98,4 @@ async function startTunnel() {
   return server;
 }
 
-module.exports = { startTunnel };
+module.exports = { startTunnel, probeLocalMySQL };
