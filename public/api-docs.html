@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="fr-en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Cœur à Cœur REST API — 21 endpoints. Bilingual documentation / Documentation bilingue.">
+<meta name="robots" content="index, follow">
+<title>Cœur à Cœur — API Documentation</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebAPI",
+  "name": "Cœur à Cœur API",
+  "url": "https://api.coeuracoeur.com",
+  "documentation": "https://api.coeuracoeur.com/api-docs",
+  "description": "REST API for the Cœur à Cœur platform. JWT Bearer authentication. 21 endpoints across 7 domains.",
+  "version": "1.0",
+  "endpoint": [
+    {"method":"GET","path":"/health","auth":"none","contentType":"application/json","description":"Server health check","responses":{"200":{"status":"ok"}}},
+    {"method":"POST","path":"/api/register","auth":"none","contentType":"application/json","description":"Register a new user account","requestBody":{"name":"string","email":"string","password":"string","role":"string (optional, default: user)"},"responses":{"200":{"message":"User created"},"500":"error object"}},
+    {"method":"POST","path":"/api/login","auth":"none","contentType":"application/json","description":"Authenticate and receive a JWT token (7 days)","requestBody":{"email":"string","password":"string"},"responses":{"200":{"token":"string","user":{"id":"number","name":"string","role":"string"}},"400":"User not found | Wrong password"}},
+    {"method":"GET","path":"/api/users","auth":"admin","contentType":"application/json","description":"List all registered users","responses":{"200":[{"id":"number","name":"string","email":"string","role":"string"}]}},
+    {"method":"POST","path":"/api/users","auth":"admin","contentType":"application/json","description":"Create a user (admin action)","requestBody":{"name":"string","email":"string","role":"string","password":"string"},"responses":{"200":{"message":"User created"}}},
+    {"method":"PUT","path":"/api/users/:id","auth":"admin","contentType":"application/json","description":"Update a user. Password is re-hashed if provided","requestBody":{"name":"string","email":"string","role":"string","password":"string (optional)"},"responses":{"200":{"message":"User updated"}}},
+    {"method":"DELETE","path":"/api/users/:id","auth":"admin","contentType":"application/json","description":"Permanently delete a user","responses":{"200":{"message":"Deleted"}}},
+    {"method":"GET","path":"/api/projects","auth":"none","contentType":"application/json","description":"List all approved projects, newest first","responses":{"200":[{"id":"number","title":"string","description":"string","image":"string|null","author_id":"number","status":"approved","created_at":"datetime"}]}},
+    {"method":"POST","path":"/api/projects","auth":"bearer","contentType":"multipart/form-data","description":"Submit a project. Status: approved (admin) or pending (user)","requestBody":{"title":"string","description":"string","image":"file (optional)"},"responses":{"200":{"message":"Projet envoyé"},"401":{"message":"Unauthorized"}}},
+    {"method":"PUT","path":"/api/projects/:id","auth":"bearer","contentType":"multipart/form-data","description":"Update a project title, description, or image","requestBody":{"title":"string","description":"string","image":"file (optional)"},"responses":{"200":{"message":"Projet modifié"}}},
+    {"method":"DELETE","path":"/api/projects/:id","auth":"admin","contentType":"application/json","description":"Delete a project","responses":{"200":{"message":"Deleted"}}},
+    {"method":"GET","path":"/api/admin/projects","auth":"admin","contentType":"application/json","description":"List all projects regardless of status","responses":{"200":[{"id":"number","title":"string","status":"string","created_at":"datetime"}]}},
+    {"method":"POST","path":"/api/dons","auth":"none","contentType":"application/json","description":"Record a donation","requestBody":{"name":"string","amount":"number"},"responses":{"200":{"message":"Don ajouté"}}},
+    {"method":"GET","path":"/api/dons","auth":"admin","contentType":"application/json","description":"List all donations, most recent first","responses":{"200":[{"id":"number","name":"string","amount":"number","date":"datetime"}]}},
+    {"method":"POST","path":"/api/messages","auth":"none","contentType":"application/json","description":"Send a contact message. Saved to DB and forwarded by email","requestBody":{"name":"string","email":"string","subject":"string","message":"string"},"responses":{"200":{"message":"Message envoyé"}}},
+    {"method":"POST","path":"/api/subscribe","auth":"none","contentType":"application/json","description":"Subscribe to newsletter. Triggers double opt-in confirmation email","requestBody":{"email":"string"},"responses":{"200":{"message":"Confirmation email sent"},"400":{"message":"Email requis"}}},
+    {"method":"GET","path":"/api/subscribe/confirm","auth":"none","contentType":"application/json","description":"Confirm subscription via token from email","queryParams":{"token":"string"},"responses":{"200":{"message":"Subscription confirmed"},"400":{"message":"Invalid or expired token"}}},
+    {"method":"GET","path":"/api/unsubscribe","auth":"none","contentType":"application/json","description":"Unsubscribe via token from welcome email","queryParams":{"token":"string"},"responses":{"200":{"message":"Unsubscribed successfully"},"400":{"message":"Invalid unsubscribe link"}}},
+    {"method":"GET","path":"/api/admin/subscribers","auth":"admin","contentType":"application/json","description":"List all subscribers with subscription status","responses":{"200":[{"id":"number","email":"string","is_subscribed":"boolean","subscribed_at":"date|null","unsubscribed_at":"date|null"}]}},
+    {"method":"DELETE","path":"/api/admin/subscribers/:id","auth":"admin","contentType":"application/json","description":"Delete a subscriber record (GDPR erasure)","responses":{"200":{"message":"Deleted"}}},
+    {"method":"GET","path":"/api/admin/stats","auth":"admin","contentType":"application/json","description":"Get aggregate platform statistics","responses":{"200":{"users":"number","dons":"number","projects":"number"}}}
+  ]
+}
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sb:#1a1a2e;--sb-text:#e0e0e0;--accent:#e94560;
+  --bg:#f8f9fa;--card:#fff;--border:#e1e4e8;
+  --text:#24292e;--muted:#6a737d;--code-bg:#f6f8fa;
+  --get:#2ecc71;--post:#3498db;--put:#e67e22;--del:#e74c3c;
+  --pub-bg:#eaf9f1;--pub-fg:#1a7a4a;
+  --auth-bg:#fff8e1;--auth-fg:#b07d00;
+  --adm-bg:#fdecea;--adm-fg:#c0392b
+}
+body{display:flex;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14px;color:var(--text);background:var(--bg);min-height:100vh}
+nav{width:220px;min-width:220px;background:var(--sb);color:var(--sb-text);height:100vh;position:sticky;top:0;overflow-y:auto;padding:24px 0}
+.logo{padding:0 20px 20px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:12px}
+.logo h1{font-size:15px;font-weight:700;color:#fff}
+.logo p{font-size:10px;color:var(--accent);margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+nav ul{list-style:none}
+nav ul li a{display:block;padding:7px 20px;color:var(--sb-text);text-decoration:none;font-size:13px;transition:background .15s}
+nav ul li a:hover{background:rgba(255,255,255,.08);color:#fff;border-left:3px solid var(--accent);padding-left:17px}
+.sec-lbl{padding:14px 20px 5px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35)}
+main{flex:1;padding:40px 48px;max-width:940px}
+.ph{margin-bottom:36px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.ph h1{font-size:26px;font-weight:700}
+.ph p{color:var(--muted);margin-top:8px;line-height:1.6}
+.base{display:inline-block;background:var(--code-bg);border:1px solid var(--border);border-radius:6px;padding:7px 14px;font-family:monospace;font-size:13px;margin-top:10px}
+.auth-note{background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:12px 16px;font-size:13px;margin-bottom:28px;line-height:1.6}
+.auth-note strong{display:block;margin-bottom:4px;font-size:14px}
+.auth-note code{background:rgba(0,0,0,.07);padding:2px 5px;border-radius:3px;font-size:12px}
+section{margin-bottom:44px}
+section>h2{font-size:18px;font-weight:600;margin-bottom:14px;padding-bottom:7px;border-bottom:2px solid var(--border)}
+article{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
+.eh{display:flex;align-items:center;gap:8px;padding:12px 16px;flex-wrap:wrap}
+.eh h3{font-size:14px;font-weight:600;font-family:monospace;flex:1}
+.eb{padding:0 16px 16px}
+.desc{margin:10px 0 12px;line-height:1.5}
+.desc small{display:block;color:var(--muted);margin-top:2px;font-style:italic}
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:3px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.get{background:var(--get);color:#fff}.post{background:var(--post);color:#fff}
+.put{background:var(--put);color:#fff}.del{background:var(--del);color:#fff}
+.pub{background:var(--pub-bg);color:var(--pub-fg)}
+.aut{background:var(--auth-bg);color:var(--auth-fg)}
+.adm{background:var(--adm-bg);color:var(--adm-fg)}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px}
+caption{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:5px;font-weight:600}
+th{text-align:left;padding:6px 10px;background:var(--code-bg);border:1px solid var(--border);color:var(--muted);font-size:11px;text-transform:uppercase}
+td{padding:6px 10px;border:1px solid var(--border);vertical-align:top}
+td code{background:var(--code-bg);padding:1px 4px;border-radius:3px;font-size:12px}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:12px;margin-bottom:4px;font-weight:600}
+pre.cb{background:#1e1e2e;color:#cdd6f4;border-radius:6px;padding:12px 14px;font-family:monospace;font-size:12px;overflow-x:auto}
+@media(max-width:768px){body{flex-direction:column}nav{width:100%;height:auto;position:relative}main{padding:20px}}
+</style>
+</head>
+<body>
+
+<nav aria-label="API sections">
+  <div class="logo"><h1>Cœur à Cœur</h1><p>API Docs v1.0</p></div>
+  <ul>
+    <li class="sec-lbl">General</li>
+    <li><a href="#health">Health</a></li>
+    <li><a href="#auth">Authentication</a></li>
+    <li class="sec-lbl">Resources</li>
+    <li><a href="#users">Users</a></li>
+    <li><a href="#projects">Projects</a></li>
+    <li><a href="#donations">Donations</a></li>
+    <li><a href="#messages">Messages</a></li>
+    <li><a href="#subscribers">Subscribers</a></li>
+    <li class="sec-lbl">Admin</li>
+    <li><a href="#admin">Stats</a></li>
+  </ul>
+</nav>
+
+<main>
+  <header class="ph">
+    <h1>Cœur à Cœur — API Reference</h1>
+    <p>REST API · 21 endpoints · JWT authentication · Documentation bilingue / Bilingual documentation</p>
+    <div class="base">https://api.coeuracoeur.com</div>
+  </header>
+
+  <div class="auth-note">
+    <strong>Authentication / Authentification</strong>
+    Protected endpoints require: <code>Authorization: Bearer &lt;token&gt;</code>
+    · Obtain token via <code>POST /api/login</code> · Expires in 7 days ·
+    Les endpoints protégés requièrent : <code>Authorization: Bearer &lt;token&gt;</code>
+  </div>
+
+  <section id="health" aria-labelledby="h-health">
+    <h2 id="h-health">Health</h2>
+    <article data-method="GET" data-path="/health" data-auth="none" data-content-type="application/json">
+      <div class="eh"><span class="badge get">GET</span><h3>/health</h3><span class="badge pub">🌐 Public</span></div>
+      <div class="eb">
+        <p class="desc">Server health check. <small>Vérification du statut du serveur.</small></p>
+        <p class="lbl">Response 200</p>
+        <pre class="cb">{ "status": "ok" }</pre>
+      </div>
+    </article>
+  </section>
+
+  <section id="auth" aria-labelledby="h-auth">
+    <h2 id="h-auth">Authentication</h2>
+
+    <article data-method="POST" data-path="/api/register" data-auth="none" data-content-type="application/json">
+      <div class="eh"><span class="badge post">POST</span><h3>/api/register</h3><span class="badge pub">🌐 Public</span></div>
+      <div class="eb">
+        <p class="desc">Register a new user account. <small>Créer un nouveau compte utilisateur.</small></p>
+        <table><caption>Request Body — application/json</caption>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>name</td><td><code>string</code></td><td>Yes</td><td>Display name</td></tr>
+            <tr><td>email</td><td><code>string</code></td><td>Yes</td><td>Must be unique</td></tr>
+            <tr><td>password</td><td><code>string</code></td><td>Yes</td><td>Stored hashed (bcrypt)</td></tr>
+            <tr><td>role</td><td><code>string</code></td><td>No</td><td><code>"user"</code> or <code>"admin"</code> · Default: <code>"user"</code></td></tr>
+          </tbody>
+        </table>
+        <p class="lbl">Response 200</p><pre class="cb">{ "message": "User created" }</pre>
+      </div>
+    </article>
+
+    <article data-method="POST" data-path="/api/login" data-auth="none" data-content-type="application/json">
+      <div class="eh"><span class="badge post">POST</span><h3>/api/login</h3><span class="badge pub">🌐 Public</span></div>
+      <div class="eb">
+        <p class="desc">Authenticate and receive a JWT token valid for 7 days. <small>S'authentifier et recevoir un jeton JWT valable 7 jours.</small></p>
+        <table><caption>Request Body — application/json</caption>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th></tr></thead>
+          <tbody>
+            <tr><td>email</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>password</td><td><code>string</code></td><td>Yes</td></tr>
+          </tbody>
+        </table>
+        <p class="lbl">Response 200</p>
+        <pre class="cb">{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": { "id": 1, "name": "Alice", "role": "admin" }
+}</pre>
+        <p class="lbl">Errors</p>
+        <pre class="cb">400 — "User not found"
+400 — "Wrong password"</pre>
+      </div>
+    </article>
+  </section>
+
+  <section id="users" aria-labelledby="h-users">
+    <h2 id="h-users">Users</h2>
+
+    <article data-method="GET" data-path="/api/users" data-auth="admin" data-content-type="application/json">
+      <div class="eh"><span class="badge get">GET</span><h3>/api/users</h3><span class="badge adm">🔒 Admin</span></div>
+      <div class="eb">
+        <p class="desc">List all registered users. <small>Lister tous les utilisateurs enregistrés.</small></p>
+        <p class="lbl">Response 200</p>
+        <pre class="cb">[{ "id": 1, "name": "Alice", "email": "alice@example.com", "role": "admin" }]</pre>
+      </div>
+    </article>
+
+    <article data-method="POST" data-path="/api/users" data-auth="admin" data-content-type="application/json">
+      <div class="eh"><span class="badge post">POST</span><h3>/api/users</h3><span class="badge adm">🔒 Admin</span></div>
+      <div class="eb">
+        <p class="desc">Create a user (admin action). <small>Créer un utilisateur (action admin).</small></p>
+        <table><caption>Request Body — application/json</caption>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th></tr></thead>
+          <tbody>
+            <tr><td>name</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>email</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>role</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>password</td><td><code>string</code></td><td>Yes</td></tr>
+          </tbody>
+        </table>
+        <p class="lbl">Response 200</p><pre class="cb">{ "message": "User created" }</pre>
+      </div>
+    </article>
+
+    <article data-method="PUT" data-path="/api/users/:id" data-auth="admin" data-content-type="application/json">
+      <div class="eh"><span class="badge put">PUT</span><h3>/api/users/:id</h3><span class="badge adm">🔒 Admin</span></div>
+      <div class="eb">
+        <p class="desc">Update a user. Password is re-hashed if provided. <small>Mettre à jour un utilisateur. Le mot de passe est re-hashé si fourni.</small></p>
+        <table><caption>Request Body — application/json</caption>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th></tr></thead>
+          <tbody>
+            <tr><td>name</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>email</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>role</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>password</td><td><code>string</code></td><td>No</td></tr>
+          </tbody>
+        </table>
+        <p class="lbl">Response 200</p><pre class="cb">{ "message": "User updated" }</pre>
+      </div>
+    </article>
+
+    <article data-method="DELETE" data-path="/api/users/:id" data-auth="admin" data-content-type="application/json">
+      <div class="eh"><span class="badge del">DELETE</span><h3>/api/users/:id</h3><span class="badge adm">🔒 Admin</span></div>
+      <div class="eb">
+        <p class="desc">Permanently delete a user. <small>Supprimer définitivement un utilisateur.</small></p>
+        <p class="lbl">Response 200</p><pre class="cb">{ "message": "Deleted" }</pre>
+      </div>
+    </article>
+  </section>
+
+  <section id="projects" aria-labelledby="h-projects">
+    <h2 id="h-projects">Projects</h2>
+
+    <article data-method="GET" data-path="/api/projects" data-auth="none" data-content-type="application/json">
+      <div class="eh"><span class="badge get">GET</span><h3>/api/projects</h3><span class="badge pub">🌐 Public</span></div>
+      <div class="eb">
+        <p class="desc">List all approved projects, newest first. <small>Lister tous les projets approuvés, du plus récent au plus ancien.</small></p>
+        <p class="lbl">Response 200</p>
+        <pre class="cb">[{
+  "id": 1, "title": "Projet A", "description": "...",
+  "image": "/uploads/1234567890.jpg",
+  "author_id": 2, "status": "approved",
+  "created_at": "2026-06-01T10:00:00.000Z"
+}]</pre>
+      </div>
+    </article>
+
+    <article data-method="POST" data-path="/api/projects" data-auth="bearer" data-content-type="multipart/form-data">
+      <div class="eh"><span class="badge post">POST</span><h3>/api/projects</h3><span class="badge aut">🔑 Auth</span></div>
+      <div class="eb">
+        <p class="desc">Submit a project. Status auto-set: <code>approved</code> for admins, <code>pending</code> for users. <small>Soumettre un projet. Statut automatique : <code>approved</code> pour les admins, <code>pending</code> pour les utilisateurs.</small></p>
+        <table><caption>Request Body — multipart/form-data</caption>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th></tr></thead>
+          <tbody>
+            <tr><td>title</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>description</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>image</td><td><code>file</code></td><td>No</td></tr>
+          </tbody>
+        </table>
+        <p class="lbl">Response 200</p><pre class="cb">{ "message": "Projet envoyé" }</pre>
+      </div>
+    </article>
+
+    <article data-method="PUT" data-path="/api/projects/:id" data-auth="bearer" data-content-type="multipart/form-data">
+      <div class="eh"><span class="badge put">PUT</span><h3>/api/projects/:id</h3><span class="badge aut">🔑 Auth</span></div>
+      <div class="eb">
+        <p class="desc">Update a project's title, description, or image. <small>Modifier le titre, la description ou l'image d'un projet.</small></p>
+        <table><caption>Request Body — multipart/form-data</caption>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th></tr></thead>
+          <tbody>
+            <tr><td>title</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>description</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>image</td><td><code>file</code></td><td>No</td></tr>
+          </tbody>
+        </table>
+        <p class="lbl">Response 200</p><pre class="cb">{ "message": "Projet modifié" }</pre>
+      </div>
+    </article>
+
+    <article data-method="DELETE" data-path="/api/projects/:id" data-auth="admin" data-content-type="application/json">
+      <div class="eh"><span class="badge del">DELETE</span><h3>/api/projects/:id</h3><span class="badge adm">🔒 Admin</span></div>
+      <div class="eb">
+        <p class="desc">Delete a project. <small>Supprimer un projet.</small></p>
+        <p class="lbl">Response 200</p><pre class="cb">{ "message": "Deleted" }</pre>
+      </div>
+    </article>
+
+    <article data-method="GET" data-path="/api/admin/projects" data-auth="admin" data-content-type="application/json">
+      <div class="eh"><span class="badge get">GET</span><h3>/api/admin/projects</h3><span class="badge adm">🔒 Admin</span></div>
+      <div class="eb">
+        <p class="desc">List all projects regardless of status (pending and approved). <small>Lister tous les projets quel que soit leur statut.</small></p>
+        <p class="lbl">Response 200</p>
+        <pre class="cb">[{ "id": 1, "title": "Projet A", "status": "pending", "author_id": 3, "created_at": "2026-06-01T10:00:00.000Z" }]</pre>
+      </div>
+    </article>
+  </section>
+
+  <section id="donations" aria-labelledby="h-donations">
+    <h2 id="h-donations">Donations</h2>
+
+    <article data-method="POST" data-path="/api/dons" data-auth="none" data-content-type="application/json">
+      <div class="eh"><span class="badge post">POST</span><h3>/api/dons</h3><span class="badge pub">🌐 Public</span></div>
+      <div class="eb">
+        <p class="desc">Record a donation. <small>Enregistrer un don.</small></p>
+        <table><caption>Request Body — application/json</caption>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th></tr></thead>
+          <tbody>
+            <tr><td>name</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>amount</td><td><code>number</code></td><td>Yes</td></tr>
+          </tbody>
+        </table>
+        <p class="lbl">Response 200</p><pre class="cb">{ "message": "Don ajouté" }</pre>
+      </div>
+    </article>
+
+    <article data-method="GET" data-path="/api/dons" data-auth="admin" data-content-type="application/json">
+      <div class="eh"><span class="badge get">GET</span><h3>/api/dons</h3><span class="badge adm">🔒 Admin</span></div>
+      <div class="eb">
+        <p class="desc">List all donations, most recent first. <small>Lister tous les dons, du plus récent au plus ancien.</small></p>
+        <p class="lbl">Response 200</p>
+        <pre class="cb">[{ "id": 1, "name": "Jean", "amount": 50, "date": "2026-06-01T10:00:00.000Z" }]</pre>
+      </div>
+    </article>
+  </section>
+
+  <section id="messages" aria-labelledby="h-messages">
+    <h2 id="h-messages">Messages</h2>
+
+    <article data-method="POST" data-path="/api/messages" data-auth="none" data-content-type="application/json">
+      <div class="eh"><span class="badge post">POST</span><h3>/api/messages</h3><span class="badge pub">🌐 Public</span></div>
+      <div class="eb">
+        <p class="desc">Send a contact form message. Saved to database and forwarded by email. <small>Envoyer un message de contact. Sauvegardé en base et transmis par email.</small></p>
+        <table><caption>Request Body — application/json</caption>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th></tr></thead>
+          <tbody>
+            <tr><td>name</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>email</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>subject</td><td><code>string</code></td><td>Yes</td></tr>
+            <tr><td>message</td><td><code>string</code></td><td>Yes</td></tr>
+          </tbody>
+        </table>
+        <p class="lbl">Response 200</p><pre class="cb">{ "message": "Message envoyé" }</pre>
+      </div>
+    </article>
+  </section>
+
+  <section id="subscribers" aria-labelledby="h-subscribers">
+    <h2 id="h-subscribers">Subscribers</h2>
+
+    <article data-method="POST" data-path="/api/subscribe" data-auth="none" data-content-type="application/json">
+      <div class="eh"><span class="badge post">POST</span><h3>/api/subscribe</h3><span class="badge pub">🌐 Public</span></div>
+      <div class="eb">
+        <p class="desc">Subscribe to the newsletter. Triggers a double opt-in confirmation email. <small>S'abonner à la newsletter. Déclenche un email de confirmation double opt-in.</small></p>
+        <table><caption>Request Body — application/json</caption>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th></tr></thead>
+          <tbody><tr><td>email</td><td><code>string</code></td><td>Yes</td></tr></tbody>
+        </table>
+        <p class="lbl">Response 200</p><pre class="cb">{ "message": "Confirmation email sent" }</pre>
+        <p class="lbl">Errors</p><pre class="cb">400 — { "message": "Email requis" }</pre>
+      </div>
+    </article>
+
+    <article data-method="GET" data-path="/api/subscribe/confirm" data-auth="none" data-content-type="application/json">
+      <div class="eh"><span class="badge get">GET</span><h3>/api/subscribe/confirm</h3><span class="badge pub">🌐 Public</span></div>
+      <div class="eb">
+        <p class="desc">Confirm newsletter subscription via the token link sent by email. <small>Confirmer l'abonnement via le lien envoyé par email.</small></p>
+        <table><caption>Query Parameters</caption>
+          <thead><tr><th>Param</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+          <tbody><tr><td>token</td><td><code>string</code></td><td>Yes</td><td>From confirmation email</td></tr></tbody>
+        </table>
+        <p class="lbl">Response 200</p><pre class="cb">{ "message": "Subscription confirmed" }</pre>
+        <p class="lbl">Errors</p><pre class="cb">400 — { "message": "Invalid or expired token" }</pre>
+      </div>
+    </article>
+
+    <article data-method="GET" data-path="/api/unsubscribe" data-auth="none" data-content-type="application/json">
+      <div class="eh"><span class="badge get">GET</span><h3>/api/unsubscribe</h3><span class="badge pub">🌐 Public</span></div>
+      <div class="eb">
+        <p class="desc">Unsubscribe from the newsletter via the token link in the welcome email. <small>Se désabonner via le lien présent dans l'email de bienvenue.</small></p>
+        <table><caption>Query Parameters</caption>
+          <thead><tr><th>Param</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+          <tbody><tr><td>token</td><td><code>string</code></td><td>Yes</td><td>From welcome email</td></tr></tbody>
+        </table>
+        <p class="lbl">Response 200</p><pre class="cb">{ "message": "Unsubscribed successfully" }</pre>
+        <p class="lbl">Errors</p><pre class="cb">400 — { "message": "Invalid unsubscribe link" }</pre>
+      </div>
+    </article>
+
+    <article data-method="GET" data-path="/api/admin/subscribers" data-auth="admin" data-content-type="application/json">
+      <div class="eh"><span class="badge get">GET</span><h3>/api/admin/subscribers</h3><span class="badge adm">🔒 Admin</span></div>
+      <div class="eb">
+        <p class="desc">List all subscribers with their subscription status. <small>Lister tous les abonnés avec leur statut d'abonnement.</small></p>
+        <p class="lbl">Response 200</p>
+        <pre class="cb">[{
+  "id": 1, "email": "user@example.com",
+  "is_subscribed": true,
+  "subscribed_at": "2026-06-01", "unsubscribed_at": null
+}]</pre>
+      </div>
+    </article>
+
+    <article data-method="DELETE" data-path="/api/admin/subscribers/:id" data-auth="admin" data-content-type="application/json">
+      <div class="eh"><span class="badge del">DELETE</span><h3>/api/admin/subscribers/:id</h3><span class="badge adm">🔒 Admin</span></div>
+      <div class="eb">
+        <p class="desc">Permanently delete a subscriber record (GDPR erasure). <small>Supprimer définitivement un enregistrement d'abonné (effacement RGPD).</small></p>
+        <p class="lbl">Response 200</p><pre class="cb">{ "message": "Deleted" }</pre>
+      </div>
+    </article>
+  </section>
+
+  <section id="admin" aria-labelledby="h-admin">
+    <h2 id="h-admin">Admin — Statistics</h2>
+
+    <article data-method="GET" data-path="/api/admin/stats" data-auth="admin" data-content-type="application/json">
+      <div class="eh"><span class="badge get">GET</span><h3>/api/admin/stats</h3><span class="badge adm">🔒 Admin</span></div>
+      <div class="eb">
+        <p class="desc">Get aggregate platform statistics: user count, total donations, project count. <small>Obtenir les statistiques agrégées de la plateforme.</small></p>
+        <p class="lbl">Response 200</p>
+        <pre class="cb">{ "users": 42, "dons": 1250.00, "projects": 18 }</pre>
+      </div>
+    </article>
+  </section>
+
+</main>
+</body>
+</html>
