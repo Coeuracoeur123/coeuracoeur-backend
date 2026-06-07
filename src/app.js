@@ -13,6 +13,7 @@ app.use(cors({
   optionsSuccessStatus: 204,
 }));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/api-docs', express.static(path.join(__dirname, '..', 'public')));
 
 app.use((req, res, next) => {
   console.log('➡️', req.method, req.url);
