@@ -14,8 +14,8 @@ function createTransporter() {
   return nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: 'tonemail@gmail.com',
-      pass: 'mot_de_passe_app',
+      user: process.env.MAIL_USER,
+      pass: process.env.MAIL_PASS,
     },
   });
 }
@@ -23,7 +23,7 @@ function createTransporter() {
 async function sendConfirmationEmail(email, token) {
   const link = `${process.env.APP_URL}/api/subscribe/confirm?token=${token}`;
   await createTransporter().sendMail({
-    from: 'Site <tonemail@gmail.com>',
+    from: `Site <${process.env.MAIL_USER}>`,
     to: email,
     subject: 'Confirmez votre inscription',
     html: `<p>Bonjour,<br>Cliquez sur le lien ci-dessous pour confirmer votre inscription :<br><a href="${link}">${link}</a></p>`,
@@ -33,7 +33,7 @@ async function sendConfirmationEmail(email, token) {
 async function sendWelcomeEmail(email, token) {
   const link = `${process.env.APP_URL}/api/unsubscribe?token=${token}`;
   await createTransporter().sendMail({
-    from: 'Site <tonemail@gmail.com>',
+    from: `Site <${process.env.MAIL_USER}>`,
     to: email,
     subject: 'Inscription confirmée — Bienvenue !',
     html: `<p>Votre inscription est confirmée. Merci !<br>Pour vous désinscrire à tout moment :<br><a href="${link}">${link}</a></p>`,
