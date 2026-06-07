@@ -1,8 +1,8 @@
 const express = require('express');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const { auth, isAdmin } = require('../middleware/auth');
 const { getDb } = require('../db');
+const { sendMail } = require('../services/mailer');
 
 const router = express.Router();
 
@@ -10,20 +10,9 @@ function generateToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-function createTransporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
-    },
-  });
-}
-
 async function sendConfirmationEmail(email, token) {
   const link = `${process.env.APP_URL}/api/subscribe/confirm?token=${token}`;
-  await createTransporter().sendMail({
-    from: `Site <${process.env.MAIL_USER}>`,
+  await sendMail({
     to: email,
     subject: 'Confirmez votre inscription',
     html: `<p>Bonjour,<br>Cliquez sur le lien ci-dessous pour confirmer votre inscription :<br><a href="${link}">${link}</a></p>`,
@@ -32,8 +21,7 @@ async function sendConfirmationEmail(email, token) {
 
 async function sendWelcomeEmail(email, token) {
   const link = `${process.env.APP_URL}/api/unsubscribe?token=${token}`;
-  await createTransporter().sendMail({
-    from: `Site <${process.env.MAIL_USER}>`,
+  await sendMail({
     to: email,
     subject: 'Inscription confirmée — Bienvenue !',
     html: `<p>Votre inscription est confirmée. Merci !<br>Pour vous désinscrire à tout moment :<br><a href="${link}">${link}</a></p>`,
